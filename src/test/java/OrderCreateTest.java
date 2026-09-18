@@ -1,6 +1,8 @@
-import io.qameta.allure.Step;
+import io.qameta.allure.Description;
+import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -9,8 +11,9 @@ import org.junit.runners.Parameterized;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
-import static io.restassured.RestAssured.given;
+import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.hamcrest.Matchers.notNullValue;
 
 @RunWith(Parameterized.class)
@@ -26,57 +29,60 @@ public class OrderCreateTest {
     private static final int RENT_TIME = 5;
     private static final String COMMENT = "Тестовый заказ";
 
-    private final String color;
+    private final List<String> color;
+    private OrderApi orderApi;
+    private int track;
 
-    public OrderCreateTest(String color) {
+    public OrderCreateTest(List<String> color) {
         this.color = color;
     }
 
     @Parameterized.Parameters(name = "Цвет: {0}")
     public static Collection<Object[]> getParameters() {
         return Arrays.asList(new Object[][]{
-                {"[\"BLACK\"]"},
-                {"[\"GREY\"]"},
-                {"[\"BLACK\", \"GREY\"]"},
+                {Arrays.asList("BLACK")},
+                {Arrays.asList("GREY")},
+                {Arrays.asList("BLACK", "GREY")},
                 {null}
         });
     }
 
     @Before
-    @Step("Настроить базовый URL")
     public void setUp() {
         RestAssured.baseURI = BASE_URI;
+        orderApi = new OrderApi();
     }
 
     @Test
-    @Step("Создать заказ с выбранным вариантом цвета")
+    @DisplayName("Создание заказа")
+    @Description("Проверка успешного создания заказа с различными вариантами цвета самоката")
     public void createOrderTest() {
-        Response response = createOrder();
+        OrderModel order = new OrderModel(
+                FIRST_NAME,
+                LAST_NAME,
+                ADDRESS,
+                METRO_STATION,
+                PHONE,
+                RENT_TIME,
+                LocalDate.now().plusDays(1).toString(),
+                COMMENT,
+                color
+        );
 
-        response
+        Response response = orderApi.createOrder(order);
+
+        track = response
                 .then()
-                .statusCode(201)
-                .body("track", notNullValue());
+                .statusCode(SC_CREATED)
+                .body("track", notNullValue())
+                .extract()
+                .path("track");
     }
 
-    @Step("Создать заказ")
-    private Response createOrder() {
-        String requestBody = "{"
-                + "\"firstName\":\"" + FIRST_NAME + "\","
-                + "\"lastName\":\"" + LAST_NAME + "\","
-                + "\"address\":\"" + ADDRESS + "\","
-                + "\"metroStation\":" + METRO_STATION + ","
-                + "\"phone\":\"" + PHONE + "\","
-                + "\"rentTime\":" + RENT_TIME + ","
-                + "\"deliveryDate\":\"" + LocalDate.now().plusDays(1) + "\","
-                + "\"comment\":\"" + COMMENT + "\""
-                + (color == null ? "" : ",\"color\":" + color)
-                + "}";
-
-        return given()
-                .header("Content-type", "application/json")
-                .body(requestBody)
-                .when()
-                .post("/api/v1/orders");
+    @After
+    public void cancelOrder() {
+        if (track != 0) {
+            orderApi.cancelOrder(track);
+        }
     }
 }

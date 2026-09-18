@@ -1,36 +1,34 @@
-import io.qameta.allure.Step;
+import io.qameta.allure.Description;
+import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
 import org.junit.Before;
 import org.junit.Test;
-import static io.restassured.RestAssured.given;
+
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.Matchers.notNullValue;
 
 public class OrderListTest {
 
     private static final String BASE_URI = "https://qa-scooter.praktikum-services.ru";
 
+    private OrderApi orderApi;
+
     @Before
-    @Step("Настроить базовый URL")
     public void setUp() {
         RestAssured.baseURI = BASE_URI;
+        orderApi = new OrderApi();
     }
 
     @Test
-    @Step("Получить список заказов")
+    @DisplayName("Получение списка заказов")
+    @Description("Проверка успешного получения списка заказов")
     public void getOrderListTest() {
-        Response response = getOrderList();
+        Response response = orderApi.getOrderList();
 
         response
                 .then()
-                .statusCode(200)
+                .statusCode(SC_OK)
                 .body("orders", notNullValue());
-    }
-
-    @Step("Получить список заказов")
-    private Response getOrderList() {
-        return given()
-                .when()
-                .get("/api/v1/orders");
     }
 }
